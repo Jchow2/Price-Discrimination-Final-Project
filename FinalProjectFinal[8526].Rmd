@@ -1,0 +1,209 @@
+---
+title: '*R Markdown* Final Project'
+author: "Justin Chow"
+date: "Final Project - Price Discrimination"
+output:
+  html_document: default
+  pdf_document: default
+  header-includes: \usepackage{color}
+margin: 1in
+fontsize: 12pt
+---
+<!--
+This part is a comment: it won't show in your output. You can use comments to remind you to change the name or the lab number, or a version number. You should use lots of them.  Some excellent economists say that about one quarter of your programs should be comments. Comments are most important in your blocks of code (the grey part of the RMarkdown document)
+-->
+
+This is my version of Econ 42 Final Project
+
+```{r setup, echo=FALSE, message=F, warning=F}
+
+#==============================================================================
+#   This chunk will be used for every assignment
+#==============================================================================
+
+  # Clear the working space
+    rm(list = ls())
+
+  #Set working directory
+setwd("C:/Users/14087/Documents/SCU_Fall2020/Econ 42")
+getwd()
+
+  #Add a function to calculate corrected standard errors:
+cse=function(reg) {
+  rob=sqrt(diag(vcovHC(reg, type="HC1")))
+  return(rob)
+  }
+### Load the packages (all must have been installed)
+    library(doBy)
+    library(dplyr)
+    library(foreign)
+    library(ggplot2)
+    library(knitr)
+    library(lmtest)
+    library(readstata13)
+    library(sandwich)
+    library(stargazer)
+    library(AER)
+    library(gdata)
+    library("wooldridge")
+```
+
+
+
+```{r data, echo=FALSE, warning=FALSE, message=FALSE}
+
+#Part 1: Exploratory Data Analysis
+
+NJdiscrim = subset(discrim, NJ>0)
+NJdiscrim$incomes=NJdiscrim$income/10000
+discrim$incomes=discrim$income/10000
+
+#Use stargazer to create a table of descriptive statistics 
+stargazer(NJdiscrim[c("pentree", "prpblck", "incomes", "prpncar", "hrsopen")], type="text", meidan=TRUE, digit=3, title="Descriptive Statistics for Price of Entrees")
+
+#Using ggplot, create a scatterplot of price of entree against your variable of interest, prpblck. Is there a relationship between price of entree and the average proportion of black.
+ggplot(discrim, aes(x=prpblck, y=pentree)) + geom_point(col="blue") + 
+  labs(title = "Price of Entree against variable of interest, prpblck", x = "Proportion of Black", y = "Price") +
+  stat_smooth(method = "lm", col = "red", se=FALSE)
+
+ggplot(discrim) + geom_point(aes(x=chain, y=pentree, color=NJ)) +labs(title = "Price of Entrees by Chain", x = "Chain", y = "Price of Entree")
+
+```
+### Part 1. Exploratory Data Analysis
+
+**1. Use stargazer to create a table of descriptive statistics for incomes, prpblck, prpncar, and hrsopen. Briefly describe what you learn about the data.**
+
+In this table of descriptive statistics, the average income in NJ is 4.805 dollars (in thousands) so income tends to average right in the middle of the scale varying from the line of best fit by 1.356 dollars (in thousands). Prpblck has a mean of 0.131 so black people make up an average of 13.1% of the total population in NJ, which means prpblck varies from the line of best fit by 0.198 or 19.8%. Prpncar has a mean of 0.119 so people with no car make up an average of 11.9% of the total population in NJ and prpncar varies from the line of best fit by 0.123 or 12.3%. Hrsopen has a mean of 14.418 hours so most fast-food restaurants are open for an average of 14 hours, which means for every hour varying from the line of best fit by 2.779 hours. Price of entree has a mean of $1.35 and the price of the entree deviates from the line of best fit on average by $0.65.
+
+**2. Use ggplot to create a scatterplot for price of entrees against prpblck. Is there a relationship between price of entrees and the proportion of black. Is the direction of the association what you expected? Why or why not?**
+
+There is a clear positive slope showing positive correlation between the price of entrees and prpblck. This means that, on average, the higher proportion of blacks there are in a given area the higher the price of entrees. The larger distribution of prices within the two dollar range causes the relationship to be positively correlated between price of entrees and prpblck. We did expect this slight positive correlation because of our preconceived hypothesis that price discrimination is common.
+
+
+```{r table1, echo=FALSE, message=F, warning=F}
+
+#Part 2: Regression Analysis 
+
+#Run a regression using "lm" command. Main regressor is proportion of black against dependent variable price of entrees. Control variables include median house income, proportion of cars, hours fast food restaurant is open, interaction term of income against chain BK. 
+reg1 = lm(pentree~prpblck, data=NJdiscrim)
+reg2 = lm(pentree~prpblck+incomes, data=NJdiscrim)
+reg3 = lm(pentree~prpblck+incomes+prpncar, data=NJdiscrim)
+reg4 = lm(pentree~prpblck+incomes+prpncar+log(hrsopen), data=NJdiscrim)
+reg5 = lm(pentree~prpblck+incomes+prpncar+log(hrsopen)+BK+I(prpblck*BK), data=NJdiscrim)
+reg6 = lm(pentree~prpblck+incomes+prpncar+log(hrsopen)+BK+I(prpblck*BK)+KFC+I(prpblck*KFC), data=NJdiscrim)
+
+#Use stargazer to create a regression model for the five regressions using the discrim data
+stargazer(reg1, reg2, reg3, reg4, reg5, reg6, 
+          se=list(cse(reg1), cse(reg2), cse(reg3), cse(reg4), cse(reg5), cse(reg6)),
+          title="Regression Model of Price of Entree", 
+          type="text", 
+          df=FALSE, digits=3)
+
+```
+
+```{r table2, echo=FALSE, message=F, warning=F}
+
+#Part 2: Regression Analysis 
+
+#Run a regression using "lm" command. Main regressor is proportion of black against dependent variable price of entrees. Control variables include median house income, proportion of cars, hours fast food restaurant is open, interaction term of income against chain BK. 
+reg7 = lm(pentree~prpblck, data=discrim)
+reg8 = lm(pentree~prpblck+incomes, data=discrim)
+reg9 = lm(pentree~prpblck+incomes+prpncar, data=discrim)
+reg10 = lm(pentree~prpblck+incomes+prpncar+log(hrsopen), data=discrim)
+reg11 = lm(pentree~prpblck+incomes+prpncar+log(hrsopen)+BK+I(prpblck*BK), data=discrim)
+reg12 = lm(pentree~prpblck+incomes+prpncar+log(hrsopen)+BK+I(prpblck*BK)+KFC+I(prpblck*KFC), data=discrim)
+
+#Use stargazer to create a regression model for the five regressions using the discrim data
+stargazer(reg7, reg8, reg9, reg10, reg11, reg12, 
+          se=list(cse(reg7), cse(reg8), cse(reg9), cse(reg10), cse(reg11), cse(reg12)),
+          title="Regression Model of Price of Entree", 
+          type="text", 
+          df=FALSE, digits=3)
+
+```
+### Part 2. Regression Analysis 
+
+**3. Use the stargazer command to create a regression model for price of entrees against income. How does adding the control variables affect income? Interpret carefully the slope in words. What control variables’ effect is significant? Does it improve the fit of the regression? Explain carefully.**
+
+The variable of interest, prpblck, on price of entrees does suffer from omitted variable bias, the additional control variables incomes, prpncar, hrsopen, BK, and interaction between prpblck * BK raises the coefficient of prpblck on price of entree shows downward bias. From regression 1 to 6, prpblck decreased to 0.172 and regressors fit increased to 79.2% of the variation. In regression 5, the control variables income and proportion of people with no car raises the significance of proportion of black based on their t-stat. The coefficient log of hours open is statistically significant because t-stat 8.75 is greater than a 5% significance level. A 100% increase in hours open results in an average price of entrees would decrease by 1.662. The coefficient Burger King is statistically significant because t-stat 3.42 is greater than a 5% significance level. An increase in Burger King stores by 1 unit results in an average price of entrees would decrease by 0.242. Interaction term prpblck*BK is not statistically significant because the t-stat 2.71 is greater than a 5% significance level. The interaction prpblck*BK reduces the price of entrees by 0.645. In regression 5, it is clear that Burger King does not price discriminate against black people. In regression 6, the KFC became the most significant control variable with the inclusion of one KFC unit in NJ increasing the price by 1.29. On the other hand, interaction term prpblck*KFC is not statistically significant because the t-stat 0.30 is significantly less than a 5% significance level. As a result of adding KFC, the proportion of black lowered to 0.172 and became not statistically significant at a 5% level. In regression 6, it is clear that KFC does price discriminate against black people. Though this regression model is limited to the subset of New Jersey, the regression model that included both NJ and PA shows similar values, and the prpblck and fit of the regression were practically equivalent.                  
+  
+**4. Looking at your regression models, choose your baseline specification. Discuss carefully the statistical significance of all the variables included. Comparing the baseline regression, would you say there is evidence of omitted variable bias in the estimation of Regression 1.**
+
+When the variable of interest is prpblck and a subset of New Jersey, our baseline specification is regression 6. Prpblck, incomes, log(hrs open), BK, and the interaction between prpblck*BK and/or prpblck*KFC. In regression 6, proportion of black, income and log(hrs open) decreases in significance while the proportion of people with no cars increases in significance. The most significant control variable is the binary variable KFC with a t-stat of 16.67 greater than the 5% level. The adjusted-R2 increases greatly with the addition of KFC and it’s interaction to prpblck to 0.792 or 79.2% of the variation total. However, regression 6 does not solve the upward OVB because of the decrease in value for prpblck from regression 1 to regression 6. 
+
+**5. Based on your analysis, discuss the economic significance of all variables against prices of entrees in the baseline regression.**
+
+In regression 6, the variables prpblck and income are not economically significant because an increase in proportion of black by 1% causes an increase in price of entree by $0.16. An increase in income by 10 thousand dollars causes a decrease in price of entree by $0.004. Income lost its significance after prpncar was added because whether people have a car is very dependent on their income. Prpncar is more economically significant because an increase in proportion of people with no cars by 1% in NJ will decrease the price of entrees by $0.317. The log of hours open is less economically significant because of more people not being able to drive to fast-food restaurants, so an 1% for fast-food restaurants would be associated with only a 0.00052 change in price of entrees. Burger King lowers in economic significance with the addition of KFC in regression 6, so an increase in Burger King stores by 1 only decreases the price of entrees by $0.199. In this case, interaction between prpblck and Burger King is less economically significant, so a 1% increase causing a decrease in price of entrees by $0.0016 is expected. On the other hand, KFC is extremely economically significant because an increase in KFC stores by 1 causes an increase in price of entrees by $.0129. Interaction term prpblck and KFC is not economically significant because an increase in the interaction term by 1% causes a decrease in price of entrees by $0.00063. This interaction term being insignificant came as a surprise at first but makes sense due to KFC greatly increasing the price when increasing the proportion of black by 1%. As a whole, BK is much less significant than KFC because, in NJ, BK barely changes the prices of the entrees relative to the proportion of blacks whereas KFC drastically changes the prices of their entrees relative to the proportion of blacks. 
+
+
+```{r table3, echo=FALSE, message=F, warning=F}
+
+#Use these regression results and the command predict to predict the price of entree with log of median family income at 10k, proportion of car at 0.39 (39%), a chain such as KFC=1 or BK=1, the fast food restaurant open at least 16 hours, and variable of interest, proportion of black, either 0.9 or 0.17.
+
+newdata = data.frame(prpblck=0.9, incomes=10, prpncar=0.39, BK=1, KFC=0, NJ=1, hrsopen=16)
+predict(reg6, newdata)
+newdata2 = data.frame(prpblck=0.3, incomes=10, prpncar=0.39, BK=1, KFC=0, NJ=1, hrsopen=16)
+predict(reg6, newdata2)
+newdata3 = data.frame(prpblck=0.9, incomes=10, prpncar=0.39, BK=0, KFC=1, NJ=1, hrsopen=16)
+predict(reg6, newdata3)
+newdata4 = data.frame(prpblck=0.3, incomes=10, prpncar=0.39, BK=0, KFC=1, NJ=1, hrsopen=16)
+predict(reg6, newdata4)
+
+```
+### Part 3. Predict using Regression results
+
+1st Predict: Use the regression 6 coefficients to predict the average price of entrees for the BK chain that has customers with average income of 10k USD, proportion of black at 0.9, proportion of cars at 0.39, and average 16 hours fast-food restaurant is open.
+
+2nd Predict: Use the regression 6 coefficients to predict the average price of entrees for the BK chain that has customers with average income of 10k USD, proportion of black at 0.3, proportion of cars at 0.39, and average 16 hours fast-food restaurant is open.
+
+3rd Predict: Use the regression 6 coefficients to predict the average price of entrees for the KFC chain that has customers with average income of 10k USD, proportion of black at 0.9, proportion of cars at 0.39, and average 16 hours fast-food restaurant is open.
+
+4th Predict: Use the regression 6 coefficients to predict the average price of entrees for the KFC chain that has customers with average income of 10k USD, proportion of black at 0.3, proportion of cars at 0.39, and average 16 hours fast-food restaurant is open.
+
+**6. Compare the predicted values. How large are the differences?**
+
+For the 1st prediction, the price of entrees for BK barely more than the 2nd prediction, valued at $0.83.
+
+For the 2nd prediction, the price of entrees for BK are barely less than the 1st prediction, valued at $0.82.
+
+For the 3rd prediction, the price of entrees for KFC are greater than the 4th prediction, valued at $2.38.
+
+For the 4th prediction, the price of entrees for KFC are much less than the 3rd prediction, valued at $2.32. 
+
+
+When you decrease the proportion of black variables from 0.9 (90%) to 0.3 (30%) in the state of NJ, then BK decreases the price of entrees by $0.008(0.830 - 0.822). This decrease in price means that BK does discriminate barely against black people in the state of NJ on price of entrees. 
+
+The difference in price of BK entrees from the 1st to 2nd prediction indicates that Burger King decreases prices with lower proportion of black, given in the state of NJ, low proportion of people having no car (0.39), average income being 10k, and fast-food restaurants hours open being 16.   
+
+When you decrease the proportion of black variables from 0.9 (90%) to 0.3 (30%) in the state of NJ, then KFC decreases the price of entrees by $0.06(2.38 - 2.32). This decrease in price means that KFC does discriminate harshly against black people in the state of NJ on price of entrees. 
+
+The difference in price of KFC entrees from the 1st to 2nd prediction indicates that Burger King decreases prices with lower proportion of black, given in the state of NJ, low proportion of people having no car (0.39), average income being 10k, and fast-food restaurants hours open being 16.   
+
+```{r table4, echo=FALSE, message=F, warning=F}
+
+#Test whether, taken as a group, income, prpblck, prpncar and hrsopen can omitted variables from the regression. That is, test the hypothesis that the hypothesized values of their coefficient are all zero against the alternative hypothesis that any one of them is nonzero.
+
+lht(reg6, c("incomes=0", "prpncar=0", "log(hrsopen)=0", "BK=0"), white.adjust="hc1")
+lht(reg6, c("KFC=0"), white.adjust="hc1")
+
+```
+### Part 4. Multiple Regression Analysis - F-test
+
+**7. Test whether, taken as a group, prpblck, income, prpncar, and hrsopen can be omitted from the regression. What is the F-statistic? What does your F-value suggest you should exclude all those variables? What do you conclude?**
+
+When using the F-Test of income, prpncar, log of hrsopen, and BK set to equal zero you get an F statistic of 4.559 which is higher than the critical value of F at 1% significance level with 4 degrees of freedom. This means we are able to reject the null hypothesis that  income, prpncar, log of hrsopen, and BK are equal to 0 and that the coefficient is statistically significant from 0 meaning they should remain in the regression.
+
+When using the F-Test of KFC set to equal zero you get an F statistic of 207.11 which is higher than the critical value of F at 1% significance level with 1 degree of freedom. This means we are able to reject the null hypothesis that KFC is equal to 0 and that the coefficient is statistically significant from 0 meaning it should remain in the regression. This cements the fact that regression 6 is superior to regression 5 and should be used as our base line.
+
+
+
+### Conclusion:  What is the causal effect of proportion of black on price of entrees?
+
+Based on our approach to studying and testing the relationship of proportion of black on price of entrees within the state NJ and the data set as a whole, we can conclude that proportion of black has a positive correlation on the price of entrees though this is statistically small compared to the the positive relationship of proportion black and price of entree when it comes to the effect of proportion of blacks has on the price of entrees for KFC. As evidenced in our regression tables when KFC is added into the regression the significance of all other variables decrease in both coefficient value and significance level, with it being the most statistically and economically significant coefficient. Additionally through hypothesis testing, and consulting the adjusted r squared for the regression we can see that for both tables the regression where KFC is included is the best fit in estimating the effect of proportion black on price of entree. From this we can conclude that KFC is the main source/contributor of price discrimation compared to other chains like Burger King(who does not price discriminate or does so by the smallest of margins based on our tables and predictions) for the state of NJ as a whole, and the data set as a whole.
+
+### Threats to Validity and Our Reasoning for Varaibles
+
+ The threats to the external validity of this data, the interpretation, and conclusions we have taken from it are numerous based on the base data we were given. Firstly it only polls 2 states more so New Jersey than Pennsylvania which have distinct populations and setting different from one another, and different from many populations and settings in the world as a whole. The legal, physical, and policy environments(different price levels, varying proportion of blacks, varying proportion of people with no car, lower or higher incomes on average) will different greatly if one tries to generalize the conclusions we have drawn to different populations and settings, thus this data is not valid externally. In terms of internal validity threats are still present that may call our interpretation and conclusions invalid. Omitted variable bias is definitely present in the regression table and we did our best to reduce this threat by adding relevant variables to the regression. We also did our best to reduce any threats arising out of having a wrong functional form by adding variables like KFC, BK, log of hrsopen and making a subset of just NJ data to make the casual relationship less biased. Sample selection bias and errors in variable bias are not something we can fix within the data set and could threaten the internal validity of the data. The threat of simultaneous causality does not exist in this regression as prices of entrees do not affect the proportion of blacks in an area.
+
+We chose price of entree as our dependent variable as we thought it would most clearly show the casual relationship being priced higher than soda and fries. As for our explanatory variable prpblck had more significant impact on price of entree when we were first testing things out and also we were genuinely interested in how race characteristics might affect the price of entree. Income we added as we believe the income of a certain zipcode would contribute to prices of entrees in that area lower for lower incomes, higher for higher incomes though this did turn out to be not statistically significant having prpblck as the explanatory variable. Prpncar was selected as we believed that was a factor that would affect price as well, as people with no cars would be less likely to go to the fast food chains thus decreasing demand and raising prices, this started out significant but decreased as more variables were added. Log of hrsopen was included not only because it was statistical significant, but the amount of time a fast food chain is open effects the amount of customers they recieve. The specification of hours open has the greater effect on price of entree for fast-food chains, and thus logging hours open helped to fit the data better in the scatterplot. We chose the binary variable BK because it is a very well known chain that we figured a small sample size would give a pretty accurate idea of the entire chain nationwide. We knew that there were more observations in the data set for BK as well. The binary variable KFC was chosen after we found out that BK hardly price discriminates so we wanted another restaurant chain to compare its results to BK’s results. What we found with KFC was very intriguing because they do price discriminate much more than Burger King does.
+
